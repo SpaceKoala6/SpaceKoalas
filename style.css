@@ -1,3 +1,4 @@
+
 /* Animaciones para el enemigo (ejemplo) */
 #spriteEnemigo.golpe {
     animation: golpeEnemigo 0.5s steps(4) forwards;
