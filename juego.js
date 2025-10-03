@@ -413,3 +413,4 @@ function finalizarTurnoBatalla() {
     protegidoEsteTurno = false;
   }
 }
+
