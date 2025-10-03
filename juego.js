@@ -24,9 +24,9 @@ let jugador = {
 
 // ------------------- ENEMIGOS -------------------
 let enemigos = [
-  { nombre: "Duende", vida: 30, ataque: 8, defensa: 2, sprite: "img/duende.png" },
-  { nombre: "Esqueleto", vida: 50, ataque: 12, defensa: 4, sprite: "img/esqueleto.png" },
-  { nombre: "Orco", vida: 80, ataque: 15, defensa: 6, sprite: "img/orco.png" }
+  { nombre: "Duende", vida: 30, ataque: 8, defensa: 2, sprite: "duende.png" },
+  { nombre: "Esqueleto", vida: 50, ataque: 12, defensa: 4, sprite: "esqueleto.png" },
+  { nombre: "Orco", vida: 80, ataque: 15, defensa: 6, sprite: "orco.png" }
 ];
 
 let enemigoActual = null;
