@@ -22,14 +22,63 @@ let jugador = {
   monedas: 50
 };
 
+// Sistema de experiencia: cada 100 XP -> subes 1 nivel (con carry-over)
+function xpPorNivel() {
+  return 100;
+}
+
+function chequearSubidaNivel() {
+  if (!jugador.experiencia) jugador.experiencia = 0;
+  const porNivel = xpPorNivel();
+  let subidas = 0;
+  while (jugador.experiencia >= porNivel) {
+    jugador.experiencia -= porNivel;
+    jugador.nivel += 1;
+    // Mejora de stats simples al subir
+    jugador.vida = Math.min(100 + (jugador.nivel - 1) * 10, 9999);
+    jugador.ataque += 2;
+    jugador.defensa += 1;
+    subidas++;
+    log('¡Has subido al nivel ' + jugador.nivel + '!');
+  }
+  if (subidas > 0) {
+    // Actualizar misiones relacionadas con subir niveles
+    misiones.subirNiveles.progreso += subidas;
+    if (misiones.subirNiveles.progreso >= misiones.subirNiveles.objetivo) {
+      jugador.monedas += misiones.subirNiveles.recompensa;
+      log('¡Misión completada: Subir 3 niveles! +' + misiones.subirNiveles.recompensa + ' monedas.');
+      misiones.subirNiveles.progreso = 0;
+    }
+    actualizarMisiones();
+    actualizarEstado();
+  }
+}
+
 // ------------------- ENEMIGOS -------------------
-let enemigos = [
-  { nombre: "Duende", vida: 30, ataque: 8, defensa: 2, sprite: "duende.png" },
-  { nombre: "Esqueleto", vida: 50, ataque: 12, defensa: 4, sprite: "esqueleto.png" },
-  { nombre: "Orco", vida: 80, ataque: 15, defensa: 6, sprite: "orco.png" }
+// Base de enemigos: stats base que luego escalan con el nivel del jugador
+const enemigosBase = [
+  { id: 'duende', nombre: "Duende", vida: 30, ataque: 8, defensa: 2, sprite: "duende.png", desbloqueo: 1, dificultad: 1 },
+  { id: 'esqueleto', nombre: "Esqueleto", vida: 50, ataque: 12, defensa: 4, sprite: "esqueleto.png", desbloqueo: 1, dificultad: 1.2 },
+  { id: 'orco', nombre: "Orco", vida: 80, ataque: 15, defensa: 6, sprite: "orco.png", desbloqueo: 1, dificultad: 1.5 },
+  // Nuevo enemigo muy difícil desbloqueable en nivel 3. Añade la imagen 'jefe_sombrio.png' en la carpeta del proyecto.
+  { id: 'jefe_sombrio', nombre: "Jefe Sombrío", vida: 250, ataque: 35, defensa: 12, sprite: "jefe_sombrio.png", desbloqueo: 3, dificultad: 3 }
 ];
 
 let enemigoActual = null;
+
+// Devuelve una copia de un enemigo escalado según el nivel del jugador
+function generarEnemigoRandom() {
+  // Filtrar enemigos desbloqueados por el nivel actual
+  const disponibles = enemigosBase.filter(e => jugador.nivel >= (e.desbloqueo || 1));
+  // Escoger uno al azar
+  const base = JSON.parse(JSON.stringify(disponibles[Math.floor(Math.random() * disponibles.length)]));
+  // Escalar stats por nivel y por su factor de dificultad
+  const nivelFactor = 1 + (jugador.nivel - 1) * 0.12; // cada nivel +12% de fuerza base
+  base.vida = Math.max(1, Math.round(base.vida * nivelFactor * base.dificultad));
+  base.ataque = Math.max(1, Math.round(base.ataque * nivelFactor * base.dificultad));
+  base.defensa = Math.max(0, Math.round(base.defensa * (1 + (jugador.nivel - 1) * 0.06)));
+  return base;
+}
 
 // ------------------- FUNCIONES DE SONIDO -------------------
 // ------------------- ANIMACIONES DEL CABALLERO -------------------
@@ -87,7 +136,7 @@ function explorar() {
 
   let objetoEncontrado = false;
   if (evento < 0.5) { // aparece enemigo
-    enemigoActual = JSON.parse(JSON.stringify(enemigos[Math.floor(Math.random() * enemigos.length)]));
+    enemigoActual = generarEnemigoRandom();
     document.getElementById("enemigo").style.display = "block";
     document.getElementById("batalla").style.display = "block";
 
@@ -98,7 +147,7 @@ function explorar() {
     proteccionesRestantes = 3;
     protegidoEsteTurno = false;
 
-    log("¡Un " + enemigoActual.nombre + " salvaje apareció!");
+    log("¡Un " + enemigoActual.nombre + " salvaje apareció! (Nivel aproximado: " + jugador.nivel + ")");
   } else if (evento < 0.8) { // encuentras objeto especial
     let tipo = Math.floor(Math.random() * 5);
     let mensaje = "";
@@ -112,8 +161,11 @@ function explorar() {
       jugador.vida = Math.min(jugador.vida + 20, 100);
       mensaje = "¡Encontraste una Poción de vida! Vida +20.";
     } else if (tipo === 3) {
+      if (!jugador.experiencia) jugador.experiencia = 0;
       jugador.experiencia += 15;
       mensaje = "¡Encontraste un Pergamino de sabiduría! Experiencia +15.";
+      // Comprobar si con esta experiencia sube de nivel
+      chequearSubidaNivel();
     } else if (tipo === 4) {
       jugador.monedas += 30;
       mensaje = "¡Encontraste un Cofre de oro! Monedas +30.";
@@ -178,7 +230,8 @@ function comprar(objeto) {
       jugador.monedas -= 20;
       if (!jugador.experiencia) jugador.experiencia = 0;
       jugador.experiencia += 10;
-      actualizarEstado();
+      // Comprobar subida de nivel
+      chequearSubidaNivel();
       log("¡Has comprado una poción! Experiencia +10.");
     } else {
       log("No tienes suficientes monedas para la poción.");
@@ -241,29 +294,25 @@ function atacarFuerte() {
     let subioNivelAntes = jugador.nivel;
   enemigoActual.vida -= danoJugador;
     if (enemigoActual.vida <= 0) {
-      jugador.experiencia += 20;
+      // Recompensa basada en enemigoActual (vida/ataque/defensa)
+      const recompensaXP = Math.max(10, Math.round((enemigoActual.vida + enemigoActual.ataque * 2 + enemigoActual.defensa) / 8));
+      const recompensaMonedas = Math.max(5, Math.round((enemigoActual.vida + enemigoActual.ataque) / 10));
+      jugador.experiencia = (jugador.experiencia || 0) + recompensaXP;
+      jugador.monedas += recompensaMonedas;
       misiones.matarEnemigos.progreso++;
       if (misiones.matarEnemigos.progreso >= misiones.matarEnemigos.objetivo) {
         jugador.monedas += misiones.matarEnemigos.recompensa;
         log("¡Misión completada: Matar 3 enemigos! +" + misiones.matarEnemigos.recompensa + " monedas.");
         misiones.matarEnemigos.progreso = 0;
       }
+      // Comprobar si con la experiencia obtenida subes de nivel
+      chequearSubidaNivel();
+      log('Recompensa: +' + recompensaXP + ' XP, +' + recompensaMonedas + ' monedas.');
       actualizarMisiones();
       actualizarEstado();
       log("¡Has derrotado al " + enemigoActual.nombre + "! Experiencia +20.");
     }
-    setTimeout(function() {
-      if (jugador.nivel > subioNivelAntes) {
-        misiones.subirNiveles.progreso += jugador.nivel - subioNivelAntes;
-        if (misiones.subirNiveles.progreso >= misiones.subirNiveles.objetivo) {
-          jugador.monedas += misiones.subirNiveles.recompensa;
-          log("¡Misión completada: Subir 3 niveles! +" + misiones.subirNiveles.recompensa + " monedas.");
-          misiones.subirNiveles.progreso = 0;
-        }
-        actualizarMisiones();
-        actualizarEstado();
-      }
-    }, 100);
+    // chequearSubidaNivel ya actualiza progreso de misiones relacionadas, no duplicar aquí
   document.getElementById("vidaEnemigo").textContent = enemigoActual.vida;
   log("Ataque fuerte: hiciste " + danoJugador + " de daño" + (critico ? " (¡Crítico!)" : "") + ".");
   finalizarTurnoBatalla();
@@ -283,16 +332,21 @@ function atacarEspecial() {
       document.getElementById("vidaEnemigo").textContent = enemigoActual.vida;
       log("Ataque especial: hiciste " + danoJugador + " de daño.");
       if (enemigoActual.vida <= 0) {
-        jugador.experiencia += 20;
+        const recompensaXP = Math.max(10, Math.round((enemigoActual.vida + enemigoActual.ataque * 2 + enemigoActual.defensa) / 8));
+        const recompensaMonedas = Math.max(5, Math.round((enemigoActual.vida + enemigoActual.ataque) / 10));
+        jugador.experiencia = (jugador.experiencia || 0) + recompensaXP;
+        jugador.monedas += recompensaMonedas;
         misiones.matarEnemigos.progreso++;
         if (misiones.matarEnemigos.progreso >= misiones.matarEnemigos.objetivo) {
           jugador.monedas += misiones.matarEnemigos.recompensa;
           log("¡Misión completada: Matar 3 enemigos! +" + misiones.matarEnemigos.recompensa + " monedas.");
           misiones.matarEnemigos.progreso = 0;
         }
+        chequearSubidaNivel();
+        log('Recompensa: +' + recompensaXP + ' XP, +' + recompensaMonedas + ' monedas.');
         actualizarMisiones();
         actualizarEstado();
-        log("¡Has derrotado al " + enemigoActual.nombre + "! Experiencia +20.");
+        log("¡Has derrotado al " + enemigoActual.nombre + "!");
       }
     } else {
       log("Ataque especial fallido: el enemigo esquivó el ataque.");
@@ -307,8 +361,13 @@ function atacarEspecial() {
 function finalizarTurnoBatalla() {
   if (enemigoActual.vida <= 0) {
     reproducirSonido("sounds/victoria.mp3");
-    let recompensa = "¡Derrotaste al " + enemigoActual.nombre + "!<br>Recompensa: 10 monedas";
-    jugador.monedas += 10;
+    // Recompensas escaladas (mismo cálculo que en ataques)
+    const recompensaXP = Math.max(10, Math.round((enemigoActual.vida + enemigoActual.ataque * 2 + enemigoActual.defensa) / 8));
+    const recompensaMonedas = Math.max(5, Math.round((enemigoActual.vida + enemigoActual.ataque) / 10));
+    let recompensa = "¡Derrotaste al " + enemigoActual.nombre + "!";
+    jugador.monedas += recompensaMonedas;
+    jugador.experiencia = (jugador.experiencia || 0) + recompensaXP;
+    recompensa += "<br>Recompensa: +" + recompensaMonedas + " monedas, +" + recompensaXP + " XP";
     // Probabilidad de obtener objeto especial
     let objeto = null;
     let prob = Math.random();
@@ -325,7 +384,11 @@ function finalizarTurnoBatalla() {
       if (!jugador.experiencia) jugador.experiencia = 0;
       jugador.experiencia += 10;
       recompensa += "<br>¡Has encontrado una Poción! Experiencia +10.";
+      // Comprobar subida de nivel por la XP adicional
+      // (chequearSubidaNivel se llamará más abajo una sola vez)
     }
+    // Comprobar si con la experiencia obtenida subes de nivel
+    chequearSubidaNivel();
     actualizarEstado();
     log(recompensa);
     document.getElementById("batalla").style.display = "none";
