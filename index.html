@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Juego de Aventura</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>¡Juego de Aventura!</h1>
+
+  <!-- Estado del jugador -->
+  <div id="estado">
+    <div id="misiones" style="background:rgba(34,34,34,0.85);border-radius:8px;padding:10px 16px;margin-bottom:16px;color:#ffd700;font-weight:bold;"></div>
+  <h2>Jugador</h2>
+  <p>Nivel: <span id="nivelJugador">1</span></p>
+  <p>Vida: <span id="vidaJugador">100</span></p>
+  <p>Ataque: <span id="ataqueJugador">10</span></p>
+  <p>Defensa: <span id="defensaJugador">5</span></p>
+  <p>Monedas: <span id="monedasJugador">50</span></p>
+  <p>Experiencia: <span id="experienciaJugador">0</span></p>
+  </div>
+
+  <!-- Estado del enemigo -->
+  <div id="enemigo" style="display:none;">
+    <h2>Enemigo: <span id="nombreEnemigo"></span></h2>
+    <div style="display:flex; align-items:center; justify-content:center; gap:24px;">
+      <img id="spriteEnemigo" src="" alt="enemigo" width="150">
+    </div>
+    <p>Vida: <span id="vidaEnemigo"></span></p>
+  </div>
+
+  <!-- Botones principales -->
+  <div class="botones-principales">
+    <button onclick="explorar()">Explorar</button>
+    <button onclick="descansar()">Descansar</button>
+    <button onclick="mostrarMercado()">Mercado</button>
+    <button onclick="salir()">Salir</button>
+  </div>
+
+  <!-- Mercado -->
+  <div id="mercado" style="display:none; margin: 32px auto; max-width: 400px; background: rgba(34,34,34,0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.18); padding: 24px 32px;">
+    <h2 style="color:#ffd700; text-align:center;">Mercado</h2>
+    <button onclick="comprar('armadura')">Comprar Armadura ligera (+3 defensa) - 30 monedas</button><br><br>
+    <button onclick="comprar('espada')">Comprar Espada de hierro (+5 ataque) - 40 monedas</button><br><br>
+    <button onclick="comprar('pocion')">Comprar Poción (+10 experiencia) - 20 monedas</button><br><br>
+    <button onclick="cerrarMercado()">Cerrar</button>
+  </div>
+
+  <!-- Botones de batalla -->
+  <div id="batalla" style="display:none;">
+    <div class="botones-batalla">
+      <button onclick="atacarFuerte()">Ataque fuerte</button>
+      <button onclick="atacarEspecial()">Ataque especial</button>
+      <button onclick="protegerse()">Protegerse</button>
+      <button onclick="huir()">Huir</button>
+    </div>
+  </div>
+
+  <p id="log"></p>
+
+  <!-- Música de fondo -->
+  <audio id="musicaFondo" src="sounds/fondo.mp3" autoplay loop></audio>
+
+  <!-- Script del juego -->
+  <script src="juego.js"></script>
+</body>
+</html>
